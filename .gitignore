@@ -12,4 +12,5 @@ Thumbs.db
 # VS Code
 .vscode/
 
+bin/
 data/
