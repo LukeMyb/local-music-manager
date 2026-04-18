@@ -1,10 +1,13 @@
 import os
 import subprocess
 import sys
+import re
+from pathlib import Path
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import uvicorn
+from mutagen.mp4 import MP4
 
 # FastAPIアプリケーションの立ち上げ
 app = FastAPI()
@@ -23,6 +26,12 @@ class URLRequest(BaseModel):
 
 # バックグラウンドでのダウンロード処理
 def download_task(original_url: str):
+    # ★追加: URLから11桁の動画IDを抽出
+    video_id = None
+    id_match = re.search(r"(?:v=|\.be\/)([a-zA-Z0-9_-]{11})", original_url)
+    if id_match:
+        video_id = id_match.group(1)
+
     # URL変換
     music_url = original_url.replace("www.youtube.com", "music.youtube.com").replace("youtu.be/", "music.youtube.com/watch?v=")
     # 保存パスのテンプレート作成（アーティスト名/曲名 [ID].m4a）
@@ -43,11 +52,69 @@ def download_task(original_url: str):
 
     print(f"[Worker] yt-dlpによるダウンロードを開始します...")
     try:
-        # 同期実行
-        subprocess.run(command, capture_output=True, text=True, check=True)
-        print("[Worker] ダウンロードとフォルダ振り分けが完了しました。")
+        subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True)
+        print(f"[Worker] ダウンロードとフォルダ振り分けが完了しました。")
+
+        # ダウンロード完了後のファイル検索プロセス
+        filepath = None
+        if video_id:
+            target_dir = Path(SAVE_DIR)
+            all_m4a_files = list(target_dir.rglob("*.m4a"))
+            target_filename_part = f"[{video_id}]"
+            found_files = [f for f in all_m4a_files if target_filename_part in f.name]
+            
+            if found_files:
+                filepath = str(found_files[0])
+            else:
+                print(f"[Worker] エラー: 動画ID '{video_id}' を含むファイルが見つかりませんでした。")
+        else:
+            print(f"[Worker] エラー: URLから動画IDを抽出できなかったため検索をスキップします。")
+
+        # 音量（LUFS）とピーク値の解析・ReplayGainメタデータの付与
+        if filepath:
+            print(f"[Worker] 音量とピーク値を解析中... ({filepath})")
+            
+            ffmpeg_exe = os.path.join(BIN_DIR, "ffmpeg.exe") if os.name == 'nt' else os.path.join(BIN_DIR, "ffmpeg")
+            # peak=true を指定してTrue Peakも同時に計測
+            ffmpeg_cmd = [
+                ffmpeg_exe, "-i", filepath,
+                "-af", "ebur128=framelog=verbose:peak=true", "-f", "null", "-"
+            ]
+            ffmpeg_result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            
+            # LUFSとTrue Peak（dBFS）の抽出
+            lufs_match = re.search(r"I:\s+([-\d\.]+)\s+LUFS", ffmpeg_result.stderr)
+            peak_match = re.search(r"Peak:\s+([-\d\.]+)\s+dBFS", ffmpeg_result.stderr)
+
+            if lufs_match and peak_match:
+                integrated_lufs = float(lufs_match.group(1))
+                true_peak_dbfs = float(peak_match.group(1))
+                
+                # ゲインの計算（目標 -14.0 LUFS）
+                target_lufs = -14.0
+                gain_db = target_lufs - integrated_lufs
+                
+                # ReplayGain用にフォーマット（dBFSから振幅の比率に変換）
+                gain_str = f"{gain_db:+.2f} dB"
+                peak_linear = 10 ** (true_peak_dbfs / 20)
+                peak_str = f"{peak_linear:.6f}"
+                
+                # m4aにカスタムタグとして書き込み
+                audio = MP4(filepath)
+                audio["----:com.apple.iTunes:REPLAYGAIN_TRACK_GAIN"] = [gain_str.encode('utf-8')]
+                audio["----:com.apple.iTunes:REPLAYGAIN_TRACK_PEAK"] = [peak_str.encode('utf-8')]
+                audio.save()
+                
+                print(f"[Worker] ReplayGainタグを埋め込みました (ゲイン: {gain_str}, ピーク: {peak_str})")
+            else:
+                print("[Worker] 音量解析に失敗しました。LUFS値またはピーク値が見つかりません。")
+                # 解析失敗時にffmpegの出力を表示する
+                print("============================== ffmpeg 出力ログ ==============================")
+                print(ffmpeg_result.stderr)
+                print("=============================================================================")
+
     except subprocess.CalledProcessError as e:
-        print(f"[Worker] ダウンロードに失敗しました:\n{e.stderr}")
+        print(f"[Worker] エラーが発生しました:\n{e.stderr}")
     
     print("=" * 50 + "\n")
 
