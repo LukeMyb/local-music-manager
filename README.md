@@ -23,7 +23,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. 自動起動の設定
-プロジェクトフォルダ内の「start_server.vbs」のショートカットを作成し、Windowsのスタートアップフォルダ（shell:startup）に配置してください。
+プロジェクトフォルダ内の「start_yt-audio-pipeline.vbs」のショートカットを作成し、Windowsのスタートアップフォルダ（shell:startup）に配置してください。
 
 ### 3. iOSショートカットの作成
 iPhone側でYouTubeのURLをサーバーに送信するためのショートカットを設定します。
@@ -63,7 +63,7 @@ iOSショートカットの送信先IPアドレスを、ローカルIPではな�
 ```text
 project_root/
 ├── main.py                # サーバー本体
-├── start_server.vbs       # バックグラウンド起動および自動更新用スクリプト
+├── start_yt-audio-pipeline.vbs       # バックグラウンド起動および自動更新用スクリプト
 ├── bin/                   # ffmpeg等のバイナリを格納
 ├── downloads/             # ダウンロードされた曲の保存先
 └── assets/                # ショートカットのスクショ等の資料を格納
