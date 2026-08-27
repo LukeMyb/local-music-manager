@@ -4,6 +4,7 @@ import sys
 import re
 from pathlib import Path
 from fastapi import FastAPI, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import uvicorn
@@ -11,6 +12,15 @@ from mutagen.mp4 import MP4
 
 # FastAPIアプリケーションの立ち上げ
 app = FastAPI()
+
+# CORSの設定（すべてのオリジンからの通信を許可）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 保存先とツール類のディレクトリ設定
 SAVE_DIR = "downloads"
