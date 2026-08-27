@@ -29,6 +29,14 @@ pip install -r requirements.txt
 iPhone側でYouTubeのURLをサーバーに送信するためのショートカットを設定します。
 最も簡単な方法は、以下のリンクからテンプレートをダウンロードすることです。
 
+### 4. PCブラウザからの追加（ブックマークレット）
+PCのブラウザからワンクリックで現在開いているYouTube動画のURLをサーバーへ送信できます。
+
+1. `assets/bookmarklet.js` を開き、コード内の `xxx.xx.xx.xx` をお使いのPC（Tailscaleなど）のIPv4アドレスに書き換えます。
+2. ブラウザ（Chrome/Edgeなど）のブックマークバーで右クリックし、「ページを追加」を選択します。
+3. 名前を「Pipelineに追加」などに設定します。
+4. URL欄に、1で書き換えた `bookmarklet.js` のコード全体を貼り付けて保存します。
+
 [ショートカットを追加する (iCloud Link)](https://www.icloud.com/shortcuts/d2651ca7c99741feb71932b95f830def)
 
 自身で手動作成する場合は、assets/shortcut_01.png を参考にアクションを組み立ててください。
