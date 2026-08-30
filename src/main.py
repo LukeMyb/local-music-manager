@@ -9,6 +9,9 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import uvicorn
 from mutagen.mp4 import MP4
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # FastAPIアプリケーションの立ち上げ
 app = FastAPI()
@@ -141,5 +144,8 @@ def add_to_queue(request: URLRequest, background_tasks: BackgroundTasks):
     return PlainTextResponse("バックグラウンドでダウンロードを開始しました")
 
 if __name__ == "__main__":
-    # host="0.0.0.0" でTailscale経由のアクセスを許可
-    uvicorn.run(app, host="100.88.57.78", port=8749)
+    # 環境変数から取得（設定がない場合のデフォルト値も設定）
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 8749))
+    
+    uvicorn.run(app, host=host, port=port)
