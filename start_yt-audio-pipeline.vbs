@@ -12,6 +12,6 @@ updateCommand = "cmd /c cd /d """ & currentDir & """ && .venv\Scripts\python.exe
 WshShell.Run updateCommand, 0, True
 
 ' アップデート完了後、サーバーを起動
-startCommand = "cmd /c cd /d """ & currentDir & """ && .venv\Scripts\python.exe src\main.py"
+startCommand = "cmd /c cd /d """ & currentDir & """ && .venv\Scripts\python.exe -m src.main"
 ' 第3引数を False にすることで、完了を待たずに裏で動かし続ける
 WshShell.Run startCommand, 0, False
