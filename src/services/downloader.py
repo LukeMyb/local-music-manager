@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 from mutagen.mp4 import MP4
 
-# 保存先とツール類のディレクトリ設定
-SAVE_DIR = "downloads"
+# 保存先のディレクトリ設定
+SAVE_DIR = os.path.join("data", "active")
 BIN_DIR = "bin"
 
 # バックグラウンドでのダウンロード処理

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 from src.routers import download
+from src.routers import songs
 
 load_dotenv()
 
@@ -21,13 +22,15 @@ app.add_middleware(
 
 # ルーターの登録
 app.include_router(download.router)
+app.include_router(songs.router, prefix="/api/songs")
 
-# 保存先とツール類のディレクトリ設定
-SAVE_DIR = "downloads"
+# 保存先のディレクトリ設定
+ACTIVE_DIR = os.path.join("data", "active")
+TRASH_DIR = os.path.join("data", "trash")
 
 # downloadsフォルダが存在しない場合は自動作成
-if not os.path.exists(SAVE_DIR):
-    os.makedirs(SAVE_DIR)
+os.makedirs(ACTIVE_DIR, exist_ok=True)
+os.makedirs(TRASH_DIR, exist_ok=True)
 
 if __name__ == "__main__":
     # 環境変数から取得（設定がない場合のデフォルト値も設定）

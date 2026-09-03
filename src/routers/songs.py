@@ -1,0 +1,73 @@
+import os
+import shutil
+from pathlib import Path
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from mutagen.mp4 import MP4
+
+# ルーターの立ち上げ
+router = APIRouter()
+
+# 対象ディレクトリの設定
+ACTIVE_DIR = os.path.join("data", "active")
+TRASH_DIR = os.path.join("data", "trash")
+
+# フロントエンドに返す楽曲データの型定義
+class Song(BaseModel):
+    filename: str
+    title: str
+    artist: str
+
+# 楽曲一覧取得API（GET /api/songs）
+@router.get("/", response_model=list[Song])
+def get_songs():
+    songs = []
+    target_dir = Path(ACTIVE_DIR)
+    
+    if not target_dir.exists():
+        return songs
+
+    # activeフォルダ内のm4aファイルを検索
+    for filepath in target_dir.rglob("*.m4a"):
+        try:
+            audio = MP4(filepath)
+            # m4aのメタデータ（タグ）から曲名とアーティスト名を取得
+            # 存在しない場合はファイル名やUnknownを代入
+            title = audio.tags.get("\xa9nam", [filepath.stem])[0] if audio.tags else filepath.stem
+            artist = audio.tags.get("\xa9ART", ["Unknown Artist"])[0] if audio.tags else "Unknown Artist"
+            
+            songs.append(Song(
+                filename=filepath.name,
+                title=title,
+                artist=artist
+            ))
+        except Exception as e:
+            print(f"[API] メタデータ読み込みエラー ({filepath.name}): {e}")
+            # エラー時も最低限ファイル名だけは返す
+            songs.append(Song(
+                filename=filepath.name,
+                title=filepath.stem,
+                artist="Unknown Artist"
+            ))
+    
+    return songs
+
+# 楽曲削除API（DELETE /api/songs/{filename}）
+@router.delete("/{filename}")
+def delete_song(filename: str):
+    # セキュリティ対策: パストラバーサル（../等を使ったディレクトリ移動）を防止
+    safe_filename = os.path.basename(filename)
+    target_path = Path(ACTIVE_DIR) / safe_filename
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="ファイルが見つかりません")
+    
+    try:
+        # 物理削除ではなく、ゴミ箱ディレクトリへの移動（論理削除）
+        trash_path = Path(TRASH_DIR) / safe_filename
+        shutil.move(str(target_path), str(trash_path))
+        
+        print(f"[API] ファイルをゴミ箱に移動しました: {safe_filename}")
+        return {"message": "ゴミ箱へ移動完了", "filename": safe_filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"削除（移動）に失敗しました: {e}")
